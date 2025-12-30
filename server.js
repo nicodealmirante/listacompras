@@ -19,7 +19,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-/* === SEARCH === */app.get("/search", async (req, res) => {
+/* === SEARCH === */
+app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
     if (!q) return res.json([]);
@@ -29,37 +30,46 @@ const pool = new Pool({
       encodeURIComponent(q)
     );
 
-    const text = await r.text();
-    console.log("RAW RESPONSE:", text.slice(0, 200));
-
-    const json = JSON.parse(text);
-
-    // 👇 CLAVE
+    const json = await r.json();
     res.json(json.products || []);
-
   } catch (e) {
     console.error("SEARCH ERROR:", e);
     res.json([]);
   }
 });
 
-
+/* === ADD === */
 app.post("/add", async (req, res) => {
-  const { name, image, price, source, originalUrl } = req.body;
+  try {
+    const { name, image, price, source, link, category } = req.body;
 
-  const nameNorm = name.toLowerCase();
+    if (!name) return res.status(400).json({ error: "name requerido" });
 
-  const r = await pool.query(
-    `INSERT INTO products (name, name_norm, image, price, source, originalUrl)
-     VALUES ($1,$2,$3,$4,$5,$6)
-     ON CONFLICT (name_norm) DO NOTHING
-     RETURNING id`,
-    [name, nameNorm, image || null, price ?? 0, source || null, originalUrl || null]
-  );
+    const nameNorm = name.toLowerCase();
 
-  res.json({ inserted: r.rowCount });
+    const r = await pool.query(
+      `INSERT INTO products
+       (name, name_norm, image, price, source, "originalUrl", category)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (name_norm) DO NOTHING
+       RETURNING id`,
+      [
+        name,
+        nameNorm,
+        image || null,
+        price ?? 0,
+        source || null,
+        link || null,
+        category || null
+      ]
+    );
+
+    res.json({ inserted: r.rowCount });
+  } catch (e) {
+    console.error("ADD ERROR:", e);
+    res.status(500).json({ error: e.message });
+  }
 });
-
 
 app.listen(3000, () =>
   console.log("OK → http://localhost:3000")
