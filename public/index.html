@@ -35,10 +35,12 @@ f.onsubmit = async e => {
   r.innerHTML = "";
   data.forEach(p => {
     const li = document.createElement("li");
-    li.innerHTML = `
-      ${p.nombre}
-      <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
-    `;
+  li.innerHTML = `
+  <img src="${p.image}" width="50" style="vertical-align:middle">
+  ${p.name}
+  <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
+`;
+
     r.appendChild(li);
   });
 };
