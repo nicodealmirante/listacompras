@@ -2,29 +2,17 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Lista compras</title>
-<style>
-body{font-family:Arial;padding:20px}
-li{margin:8px 0}
-select,button,input{margin-right:6px}
-img{vertical-align:middle}
-</style>
+<title>Lista</title>
 </head>
 <body>
 
-<h3>Buscar productos</h3>
-
 <form id="f">
-  <input id="q" placeholder="Buscar..." required>
-
+  <input id="q" placeholder="Buscar" required>
   <select id="category">
     <option value="">Sin categoría</option>
     <option value="almacen">Almacén</option>
-    <option value="desayuno">Desayuno</option>
     <option value="limpieza">Limpieza</option>
-    <option value="congelados">Congelados</option>
   </select>
-
   <button>Buscar</button>
 </form>
 
@@ -38,25 +26,20 @@ const cat = document.getElementById("category");
 f.onsubmit = async e => {
   e.preventDefault();
   r.innerHTML = "Buscando...";
-
   const q = document.getElementById("q").value;
   const res = await fetch("/search?q=" + encodeURIComponent(q));
   const data = await res.json();
-
   r.innerHTML = "";
   data.forEach(p => {
     const li = document.createElement("li");
-    li.innerHTML = `
-      <img src="${p.image}" width="40">
-      ${p.name}
-      <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
-    `;
+    li.innerHTML = `${p.name}
+      <button onclick='add(${JSON.stringify(p)})'>Agregar</button>`;
     r.appendChild(li);
   });
 };
 
 async function add(p){
-  await fetch("/add",{
+  const res = await fetch("/add",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({
@@ -67,7 +50,7 @@ async function add(p){
       category: cat.value
     })
   });
-  alert("Agregado");
+  console.log(await res.json());
 }
 </script>
 
