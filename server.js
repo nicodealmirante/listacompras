@@ -4,6 +4,12 @@ import pkg from "pg";
 const { Pool } = pkg;
 const app = express();
 
+/* === NO CACHE === */
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 app.use(express.json());
 app.use(express.static("public"));
 
@@ -12,7 +18,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-/* === BUSCAR (backend → API externa) === */
+/* === SEARCH === */
 app.get("/search", async (req, res) => {
   const q = req.query.q;
   if (!q) return res.json([]);
@@ -25,14 +31,13 @@ app.get("/search", async (req, res) => {
   res.json(data);
 });
 
-/* === GUARDAR EN POSTGRES === */
+/* === ADD === */
 app.post("/add", async (req, res) => {
   const { nombre, price, image } = req.body;
 
   await pool.query(
     `INSERT INTO products (name, price, image)
-     VALUES ($1,$2,$3)
-     ON CONFLICT DO NOTHING`,
+     VALUES ($1,$2,$3)`,
     [nombre, price || 0, image || null]
   );
 
