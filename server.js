@@ -26,7 +26,7 @@ app.get("/search", async (req, res) => {
     if (!q) return res.json([]);
 
     const r = await fetch(
-      "https://ratoneando-go-production.up.railway.app/?q=" +
+      "https://ratoneando-go-production.up.railway.app?q=" +
         encodeURIComponent(q),
       { timeout: 10000 }
     );
