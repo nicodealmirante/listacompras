@@ -44,23 +44,22 @@ const pool = new Pool({
 });
 
 
-/* === ADD === */
 app.post("/add", async (req, res) => {
-  const { name, image, price } = req.body;
+  const { name, image, price, source, originalUrl } = req.body;
 
-await pool.query(
-  `INSERT INTO products (name, image, price)
-   VALUES ($1,$2,$3)
-   ON CONFLICT (LOWER(name))
-   DO UPDATE SET
-     image = EXCLUDED.image,
-     price = EXCLUDED.price`,
-  [name, image || null, price ?? 0]
-);
+  const nameNorm = name.toLowerCase();
 
+  const r = await pool.query(
+    `INSERT INTO products (name, name_norm, image, price, source, originalUrl)
+     VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (name_norm) DO NOTHING
+     RETURNING id`,
+    [name, nameNorm, image || null, price ?? 0, source || null, originalUrl || null]
+  );
 
-  res.json({ ok: true });
+  res.json({ inserted: r.rowCount });
 });
+
 
 app.listen(3000, () =>
   console.log("OK → http://localhost:3000")
