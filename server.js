@@ -48,12 +48,15 @@ const pool = new Pool({
 app.post("/add", async (req, res) => {
   const { name, image, price } = req.body;
 
-  await pool.query(
-    `INSERT INTO products (name, image, price)
-     VALUES ($1,$2,$3)
-     ON CONFLICT DO NOTHING`,
-    [name, image || null, price ?? 0]
-  );
+await pool.query(
+  `INSERT INTO products (name, image, price)
+   VALUES ($1,$2,$3)
+   ON CONFLICT (LOWER(name))
+   DO UPDATE SET
+     image = EXCLUDED.image,
+     price = EXCLUDED.price`,
+  [name, image || null, price ?? 0]
+);
 
   res.json({ ok: true });
 });
