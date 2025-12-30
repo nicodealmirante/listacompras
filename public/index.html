@@ -2,11 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Buscador</title>
+<title>Lista compras</title>
 <style>
 body{font-family:Arial;padding:20px}
 li{margin:8px 0}
-button{margin-left:10px}
+select,button,input{margin-right:6px}
+img{vertical-align:middle}
 </style>
 </head>
 <body>
@@ -15,6 +16,15 @@ button{margin-left:10px}
 
 <form id="f">
   <input id="q" placeholder="Buscar..." required>
+
+  <select id="category">
+    <option value="">Sin categoría</option>
+    <option value="almacen">Almacén</option>
+    <option value="desayuno">Desayuno</option>
+    <option value="limpieza">Limpieza</option>
+    <option value="congelados">Congelados</option>
+  </select>
+
   <button>Buscar</button>
 </form>
 
@@ -23,6 +33,7 @@ button{margin-left:10px}
 <script>
 const f = document.getElementById("f");
 const r = document.getElementById("r");
+const cat = document.getElementById("category");
 
 f.onsubmit = async e => {
   e.preventDefault();
@@ -35,12 +46,11 @@ f.onsubmit = async e => {
   r.innerHTML = "";
   data.forEach(p => {
     const li = document.createElement("li");
-  li.innerHTML = `
-  <img src="${p.image}" width="50" style="vertical-align:middle">
-  ${p.name}
-  <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
-`;
-
+    li.innerHTML = `
+      <img src="${p.image}" width="40">
+      ${p.name}
+      <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
+    `;
     r.appendChild(li);
   });
 };
@@ -48,8 +58,14 @@ f.onsubmit = async e => {
 async function add(p){
   await fetch("/add",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(p)
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      name: p.name,
+      image: p.image,
+      source: p.source,
+      link: p.link,
+      category: cat.value
+    })
   });
   alert("Agregado");
 }
