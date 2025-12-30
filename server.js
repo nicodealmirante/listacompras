@@ -49,7 +49,7 @@ app.post("/add", async (req, res) => {
 
     const r = await pool.query(
       `INSERT INTO products
-       (name, name_norm, image, price, source, "originalUrl", category)
+       (name, name_norm, image, price, source, "originalurl", category)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (name_norm) DO NOTHING
        RETURNING id`,
