@@ -35,15 +35,21 @@ app.get("/search", async (req, res) => {
     // log real para ver qué devuelve
     console.log("RAW RESPONSE:", text.slice(0, 300));
 
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.json([]);
+    }
 
-
-    const data = await r.json();
     res.json(data);
+
   } catch (e) {
-    console.error("SEARCH ERROR:", e.message);
-    res.status(500).json([]);
+    console.error("SEARCH ERROR:", e);
+    res.json([]);
   }
 });
+
 
 /* === ADD === */
 app.post("/add", async (req, res) => {
