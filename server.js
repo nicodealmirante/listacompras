@@ -19,8 +19,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-/* === SEARCH === */
-app.get("/search", async (req, res) => {
+/* === SEARCH === */app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
     if (!q) return res.json([]);
@@ -30,19 +29,13 @@ app.get("/search", async (req, res) => {
       encodeURIComponent(q)
     );
 
-    const text = await r.text(); // 👈 LEER COMO TEXTO
+    const text = await r.text();
+    console.log("RAW RESPONSE:", text.slice(0, 200));
 
-    // log real para ver qué devuelve
-    console.log("RAW RESPONSE:", text.slice(0, 300));
+    const json = JSON.parse(text);
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return res.json([]);
-    }
-
-    res.json(data);
+    // 👇 CLAVE
+    res.json(json.products || []);
 
   } catch (e) {
     console.error("SEARCH ERROR:", e);
