@@ -12,9 +12,17 @@ button{margin-left:10px}
 <body>
 
 <h3>Buscar productos</h3>
-
+  
 <form id="f">
   <input id="q" placeholder="Buscar..." required>
+
+  <select id="category">
+    <option value="">Higiene y Salud</option>
+    <option value="Almacen">Almacén</option>
+    <option value="Electro">Electro</option>
+    <option value="Higiene y Salud">Higiene y Salud</option>
+  </select>
+
   <button>Buscar</button>
 </form>
 
@@ -23,6 +31,9 @@ button{margin-left:10px}
 <script>
 const f = document.getElementById("f");
 const r = document.getElementById("r");
+const cat = document.getElementById("category");
+  
+
 
 f.onsubmit = async e => {
   e.preventDefault();
