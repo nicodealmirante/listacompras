@@ -9,11 +9,13 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const pool = new Pool({
-  connectionString: "postgresql://postgres:sOTeSNeYMpDLhjyaEVWlFqsZbSkJsgaT@interchange.proxy.rlwy.net:55828/railway",
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-/* ===== SEARCH (backend) ===== */
+app.get("/ping", (_, res) => res.send("OK"));
+
+/* SEARCH */
 app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
@@ -23,40 +25,45 @@ app.get("/search", async (req, res) => {
       "https://ratoneando-go-production.up.railway.app/?q=" +
         encodeURIComponent(q)
     );
-
-    const json = await r.json();
-    res.json(json.products || []);
+    const j = await r.json();
+    res.json(j.products || []);
   } catch (e) {
-    console.error(e);
-    res.json([]);
+    console.error("SEARCH ERR:", e);
+    res.status(500).json([]);
   }
 });
 
-/* ===== ADD ===== */
+/* ADD */
 app.post("/add", async (req, res) => {
-  const { name, image, price, source, link, category } = req.body;
-  const nameNorm = name.toLowerCase();
+  try {
+    const { name, image, source, link, category, price } = req.body;
+    const nameNorm = name.toLowerCase();
 
-  const r = await pool.query(
-    `INSERT INTO products
-     (name, name_norm, image, price, source, "originalUrl", category)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
-     ON CONFLICT (name_norm) DO NOTHING
-     RETURNING id`,
-    [
-      name,
-      nameNorm,
-      image || null,
-      price ?? 0,
-      source || null,
-      link || null,
-      category || null
-    ]
-  );
+    const r = await pool.query(
+      `INSERT INTO products
+       (name, name_norm, image, price, source, "originalUrl", category)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (name_norm) DO NOTHING
+       RETURNING id`,
+      [
+        name,
+        nameNorm,
+        image || null,
+        price ?? 0,
+        source || null,
+        link || null,
+        category || null
+      ]
+    );
 
-  res.json({ inserted: r.rowCount });
+    console.log("INSERTED:", r.rowCount);
+    res.json({ inserted: r.rowCount });
+  } catch (e) {
+    console.error("ADD ERR:", e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.listen(process.env.PORT || 3000, () =>
-  console.log("OK → http://localhost:3000")
+  console.log("SERVER OK")
 );
