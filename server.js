@@ -58,6 +58,7 @@ await pool.query(
   [name, image || null, price ?? 0]
 );
 
+
   res.json({ ok: true });
 });
 
