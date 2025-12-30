@@ -1,5 +1,6 @@
 import express from "express";
 import pkg from "pg";
+import fetch from "node-fetch";
 
 const { Pool } = pkg;
 const app = express();
@@ -20,15 +21,22 @@ const pool = new Pool({
 
 /* === SEARCH === */
 app.get("/search", async (req, res) => {
-  const q = req.query.q;
-  if (!q) return res.json([]);
+  try {
+    const q = req.query.q;
+    if (!q) return res.json([]);
 
-  const r = await fetch(
-    "https://ratoneando-go-production.up.railway.app/?q=" +
-      encodeURIComponent(q)
-  );
-  const data = await r.json();
-  res.json(data);
+    const r = await fetch(
+      "https://ratoneando-go-production.up.railway.app/?q=" +
+        encodeURIComponent(q),
+      { timeout: 10000 }
+    );
+
+    const data = await r.json();
+    res.json(data);
+  } catch (e) {
+    console.error("SEARCH ERROR:", e.message);
+    res.status(500).json([]);
+  }
 });
 
 /* === ADD === */
