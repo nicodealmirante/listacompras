@@ -3,6 +3,7 @@ import pkg from "pg";
 
 const { Pool } = pkg;
 const app = express();
+
 app.use(express.json());
 app.use(express.static("public"));
 
@@ -11,6 +12,20 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+/* === BUSCAR (backend → API externa) === */
+app.get("/search", async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json([]);
+
+  const r = await fetch(
+    "https://ratoneando-go-production.up.railway.app/?q=" +
+      encodeURIComponent(q)
+  );
+  const data = await r.json();
+  res.json(data);
+});
+
+/* === GUARDAR EN POSTGRES === */
 app.post("/add", async (req, res) => {
   const { nombre, price, image } = req.body;
 
@@ -24,4 +39,6 @@ app.post("/add", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(3000, () => console.log("OK http://localhost:3000"));
+app.listen(3000, () =>
+  console.log("OK → http://localhost:3000")
+);
