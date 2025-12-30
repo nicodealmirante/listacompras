@@ -26,10 +26,30 @@ app.get("/search", async (req, res) => {
     if (!q) return res.json([]);
 
     const r = await fetch(
-      "https://ratoneando-go-production.up.railway.app?q=" +
-        encodeURIComponent(q),
-      { timeout: 10000 }
+      "https://ratoneando-go-production.up.railway.app/?q=" +
+      encodeURIComponent(q)
     );
+
+    const text = await r.text(); // 👈 LEER COMO TEXTO
+
+    // log real para ver qué devuelve
+    console.log("RAW RESPONSE:", text.slice(0, 300));
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.json([]);
+    }
+
+    res.json(data);
+
+  } catch (e) {
+    console.error("SEARCH ERROR:", e);
+    res.json([]);
+  }
+});
+
 
     const data = await r.json();
     res.json(data);
