@@ -1,54 +1,53 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Buscador</title>
-  <style>
-    body { font-family: Arial; padding: 20px }
-    li { margin: 8px 0 }
-    button { margin-left: 10px }
-  </style>
+<meta charset="UTF-8">
+<title>Buscador</title>
+<style>
+body{font-family:Arial;padding:20px}
+li{margin:8px 0}
+button{margin-left:10px}
+</style>
 </head>
 <body>
 
 <h3>Buscar productos</h3>
 
-<form id="searchForm">
-  <input type="text" id="q" placeholder="Buscar..." required>
+<form id="f">
+  <input id="q" placeholder="Buscar..." required>
   <button>Buscar</button>
 </form>
 
-<ul id="results"></ul>
+<ul id="r"></ul>
 
 <script>
-const form = document.getElementById("searchForm");
-const results = document.getElementById("results");
+const f = document.getElementById("f");
+const r = document.getElementById("r");
 
-form.onsubmit = async (e) => {
+f.onsubmit = async e => {
   e.preventDefault();
-  results.innerHTML = "Buscando...";
+  r.innerHTML = "Buscando...";
 
   const q = document.getElementById("q").value;
-  const res = await fetch(`https://ratoneando-go-production.up.railway.app/?q=${encodeURIComponent(q)}`);
+  const res = await fetch("/search?q=" + encodeURIComponent(q));
   const data = await res.json();
 
-  results.innerHTML = "";
-
+  r.innerHTML = "";
   data.forEach(p => {
     const li = document.createElement("li");
     li.innerHTML = `
       ${p.nombre}
       <button onclick='add(${JSON.stringify(p)})'>Agregar</button>
     `;
-    results.appendChild(li);
+    r.appendChild(li);
   });
 };
 
-async function add(product) {
-  await fetch("/add", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product)
+async function add(p){
+  await fetch("/add",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(p)
   });
   alert("Agregado");
 }
