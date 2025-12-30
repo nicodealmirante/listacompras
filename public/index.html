@@ -59,9 +59,18 @@ async function add(p){
     image: p.image,
     source: p.source,
     link: p.link,
-    category: cat.value   // 👈 ACÁ ESTÁ LA CLAVE
+    category: cat.value,
+    price: Number(p.price || p.basePrice || 0) // 👈 CLAVE
   };
 
+  await fetch("/add",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  alert("Agregado");
+}
   const res = await fetch("/add",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
