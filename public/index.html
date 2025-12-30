@@ -63,14 +63,7 @@ async function add(p){
     price: Number(p.price || p.basePrice || 0) // 👈 CLAVE
   };
 
-  await fetch("/add",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify(payload)
-  });
 
-  alert("Agregado");
-}
   const res = await fetch("/add",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
