@@ -41,7 +41,7 @@ app.get("/search", async (req, res) => {
 /* === ADD === */
 app.post("/add", async (req, res) => {
   try {
-    const { name, image, price, source, link, category } = req.body;
+    const { name, description, image, price, source, link, category } = req.body;
 
     if (!name) return res.status(400).json({ error: "name requerido" });
 
@@ -49,8 +49,8 @@ app.post("/add", async (req, res) => {
 
     const r = await pool.query(
       `INSERT INTO products
-       (name, name_norm, image, price, source, "originalurl", category)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       (name, id, name_norm, image, price, source, "originalurl", category)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,%8)
        ON CONFLICT (name_norm) DO NOTHING
        RETURNING id`,
       [
