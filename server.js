@@ -5,21 +5,19 @@ import fetch from "node-fetch";
 const { Pool } = pkg;
 const app = express();
 
-/* === NO CACHE === */
-app.use((req, res, next) => {
-  res.set("Cache-Control", "no-store");
-  next();
-});
-
 app.use(express.json());
 app.use(express.static("public"));
 
 const pool = new Pool({
-  connectionString: "postgresql://postgres:sOTeSNeYMpDLhjyaEVWlFqsZbSkJsgaT@interchange.proxy.rlwy.net:55828/railway",
-  ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
-/* === SEARCH === */
+app.get("/ping", (_, res) => res.send("OK"));
+
+/* =========================
+   SEARCH (sin cambios)
+========================= */
 app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
@@ -27,50 +25,71 @@ app.get("/search", async (req, res) => {
 
     const r = await fetch(
       "https://ratoneando-go-production.up.railway.app/?q=" +
-      encodeURIComponent(q)
+        encodeURIComponent(q)
     );
+    const j = await r.json();
 
-    const json = await r.json();
-    res.json(json.products || []);
+    res.json(j.products || []);
   } catch (e) {
-    console.error("SEARCH ERROR:", e);
-    res.json([]);
+    console.error("SEARCH ERR:", e);
+    res.status(500).json([]);
   }
 });
 
-/* === ADD === */
+/* =========================
+   ADD (ADAPTADO)
+========================= */
 app.post("/add", async (req, res) => {
   try {
-    const { name, description, image, price, source, link, category } = req.body;
+    const {
+      name,
+      image,
+      source,
+      link,
+      category,
+      price,
+      description, // 👈 NUEVO
+    } = req.body;
 
-    if (!name) return res.status(400).json({ error: "name requerido" });
+    if (!name) {
+      return res.status(400).json({ error: "name requerido" });
+    }
 
-    const nameNorm = name.toLowerCase();
+    const nameNorm = name
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
     const r = await pool.query(
-      `INSERT INTO products
-       (name, id, name_norm, image, price, source, "originalurl", category)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,%8)
-       ON CONFLICT (name_norm) DO NOTHING
-       RETURNING id`,
+      `
+      INSERT INTO products
+        (name, name_norm, image, price, description, source, originalurl, category)
+      VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (name_norm) DO NOTHING
+      RETURNING id
+      `,
       [
         name,
         nameNorm,
         image || null,
         price ?? 0,
+        description || null,
         source || null,
         link || null,
-        category || null
+        category || null,
       ]
     );
 
+    console.log("INSERTED:", r.rowCount);
     res.json({ inserted: r.rowCount });
   } catch (e) {
-    console.error("ADD ERROR:", e);
+    console.error("ADD ERR:", e);
     res.status(500).json({ error: e.message });
   }
 });
 
-app.listen(3000, () =>
-  console.log("OK → http://localhost:3000")
+app.listen(process.env.PORT || 3000, () =>
+  console.log("SERVER OK")
 );
