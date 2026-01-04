@@ -39,6 +39,47 @@ app.get("/search", async (req, res) => {
 /* =========================
    ADD (ADAPTADO)
 ========================= */
+import express from "express";
+import pkg from "pg";
+import fetch from "node-fetch";
+
+const { Pool } = pkg;
+const app = express();
+
+app.use(express.json());
+app.use(express.static("public"));
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+app.get("/ping", (_, res) => res.send("OK"));
+
+/* =========================
+   SEARCH (sin cambios)
+========================= */
+app.get("/search", async (req, res) => {
+  try {
+    const q = req.query.q;
+    if (!q) return res.json([]);
+
+    const r = await fetch(
+      "https://ratoneando-go-production.up.railway.app/?q=" +
+        encodeURIComponent(q)
+    );
+    const j = await r.json();
+
+    res.json(j.products || []);
+  } catch (e) {
+    console.error("SEARCH ERR:", e);
+    res.status(500).json([]);
+  }
+});
+
+/* =========================
+   ADD (ADAPTADO)
+========================= */
 app.post("/add", async (req, res) => {
   try {
     const {
