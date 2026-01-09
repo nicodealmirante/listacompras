@@ -1,58 +1,121 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Lista</title>
-</head>
-<body>
+import fetch from "node-fetch";
+import pkg from "pg";
 
-<form id="f">
-  <input id="q" placeholder="Buscar" required>
-  <select id="category">
-    <option value="">Sin categoría</option>
-    <option value="almacen">Almacén</option>
-    <option value="limpieza">Limpieza</option>
-  </select>
-  <button>Buscar</button>
-</form>
+const { Pool } = pkg;
 
-<ul id="r"></ul>
+/* =======================
+   CONFIG DB
+======================= */
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-<script>
-const f = document.getElementById("f");
-const r = document.getElementById("r");
-const cat = document.getElementById("category");
+/* =======================
+   HELPERS
+======================= */
+const normalize = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-f.onsubmit = async e => {
-  e.preventDefault();
-  r.innerHTML = "Buscando...";
-  const q = document.getElementById("q").value;
-  const res = await fetch("/search?q=" + encodeURIComponent(q));
-  const data = await res.json();
-  r.innerHTML = "";
-  data.forEach(p => {
-    const li = document.createElement("li");
-    li.innerHTML = `${p.name}
-      <button onclick='add(${JSON.stringify(p)})'>Agregar</button>`;
-    r.appendChild(li);
-  });
-};
+/* =======================
+   JUMBO SEARCH
+======================= */
+async function buscarEnJumbo(nombre) {
+  const query = normalize(nombre);
 
-async function add(p){
-  const res = await fetch("/add",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
+  const r = await fetch("https://www.jumbo.com.ar/_v/segment/graphql/v1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      accept: "*/*",
+    },
     body: JSON.stringify({
-      name: p.name,
-      image: p.image,
-      source: p.source,
-      link: p.link,
-      category: cat.value
-    })
+      operationName: "productSearchV3",
+      variables: {
+        query,
+        from: 0,
+        to: 1,
+      },
+      extensions: {
+        persistedQuery: {
+          version: 1,
+          // ⚠️ este hash es obligatorio (el real de Jumbo)
+          sha256Hash: "REEMPLAZAR_HASH_REAL_JUMBO",
+        },
+      },
+    }),
   });
-  console.log(await res.json());
-}
-</script>
 
-</body>
-</html>
+  const j = await r.json();
+
+  const prod = j?.data?.productSearch?.products?.[0];
+  const item = prod?.items?.[0];
+  const offer = item?.sellers?.[0]?.commertialOffer;
+
+  if (!prod || !offer) return null;
+
+  return {
+    jumbo_id: prod.productId,
+    price: offer.Price,
+  };
+}
+
+/* =======================
+   UPDATE PRODUCT
+======================= */
+async function actualizarProducto(producto) {
+  const data = await buscarEnJumbo(producto.nombre);
+  if (!data) {
+    console.log("❌ No encontrado:", producto.nombre);
+    return;
+  }
+
+  await pool.query(
+    `
+    UPDATE products
+    SET
+      price = $1,
+      jumbo_id = $2,
+      updated_at = NOW()
+    WHERE id = $3
+    `,
+    [data.price, data.jumbo_id, producto.id]
+  );
+
+  console.log(
+    "✅ Actualizado:",
+    producto.nombre,
+    "→ $",
+    data.price,
+    "| jumbo_id:",
+    data.jumbo_id
+  );
+}
+
+/* =======================
+   MAIN
+======================= */
+async function run() {
+  const r = await pool.query(`
+    SELECT id, nombre
+    FROM products
+    WHERE source = 'jumbo'
+  `);
+
+  for (const p of r.rows) {
+    await actualizarProducto(p);
+    await new Promise((r) => setTimeout(r, 1200)); // ⏱ evita bloqueo
+  }
+
+  console.log("🚀 Proceso terminado");
+  process.exit(0);
+}
+
+run().catch((e) => {
+  console.error("ERROR:", e);
+  process.exit(1);
+});
