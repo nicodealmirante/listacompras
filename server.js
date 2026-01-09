@@ -79,7 +79,7 @@ async function actualizarProducto(producto) {
     UPDATE products
     SET
       price = $1,
-      jumbo_id = $2,
+      description = $2,
       updated_at = NOW()
     WHERE id = $3
     `,
