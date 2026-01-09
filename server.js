@@ -4,11 +4,11 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 /* =======================
-   CONFIG DB
+   DB
 ======================= */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
 /* =======================
@@ -22,37 +22,17 @@ const normalize = (s) =>
     .trim();
 
 /* =======================
-   JUMBO SEARCH
+   JUMBO SEARCH (SIN HASH)
 ======================= */
 async function buscarEnJumbo(nombre) {
-  const query = normalize(nombre);
+  const q = encodeURIComponent(normalize(nombre));
 
-  const r = await fetch("https://www.jumbo.com.ar/_v/segment/graphql/v1", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      accept: "*/*",
-    },
-    body: JSON.stringify({
-      operationName: "productSearchV3",
-      variables: {
-        query,
-        from: 0,
-        to: 1,
-      },
-      extensions: {
-        persistedQuery: {
-          version: 1,
-          // ⚠️ este hash es obligatorio (el real de Jumbo)
-          sha256Hash: "REEMPLAZAR_HASH_REAL_JUMBO",
-        },
-      },
-    }),
-  });
+  const r = await fetch(
+    `https://www.jumbo.com.ar/api/catalog_system/pub/products/search/?ft=${q}`
+  );
 
   const j = await r.json();
-
-  const prod = j?.data?.productSearch?.products?.[0];
+  const prod = j?.[0];
   const item = prod?.items?.[0];
   const offer = item?.sellers?.[0]?.commertialOffer;
 
@@ -69,6 +49,7 @@ async function buscarEnJumbo(nombre) {
 ======================= */
 async function actualizarProducto(producto) {
   const data = await buscarEnJumbo(producto.nombre);
+
   if (!data) {
     console.log("❌ No encontrado:", producto.nombre);
     return;
@@ -87,9 +68,9 @@ async function actualizarProducto(producto) {
   );
 
   console.log(
-    "✅ Actualizado:",
+    "✅",
     producto.nombre,
-    "→ $",
+    "| $",
     data.price,
     "| jumbo_id:",
     data.jumbo_id
@@ -108,10 +89,10 @@ async function run() {
 
   for (const p of r.rows) {
     await actualizarProducto(p);
-    await new Promise((r) => setTimeout(r, 1200)); // ⏱ evita bloqueo
+    await new Promise((r) => setTimeout(r, 1000)); // evita bloqueos
   }
 
-  console.log("🚀 Proceso terminado");
+  console.log("🚀 Actualización finalizada");
   process.exit(0);
 }
 
