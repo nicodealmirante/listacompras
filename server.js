@@ -1,95 +1,121 @@
-import express from "express";
-import pkg from "pg";
 import fetch from "node-fetch";
+import pkg from "pg";
 
 const { Pool } = pkg;
-const app = express();
 
-app.use(express.json());
-app.use(express.static("public"));
-
+/* =======================
+   CONFIG DB
+======================= */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }
 });
 
-app.get("/ping", (_, res) => res.send("OK"));
+/* =======================
+   HELPERS
+======================= */
+const normalize = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-/* =========================
-   SEARCH (sin cambios)
-========================= */
-app.get("/search", async (req, res) => {
-  try {
-    const q = req.query.q;
-    if (!q) return res.json([]);
+/* =======================
+   JUMBO SEARCH
+======================= */
+async function buscarEnJumbo(nombre) {
+  const query = normalize(nombre);
 
-    const r = await fetch(
-      "https://ratoneando-go-production.up.railway.app/?q=" +
-        encodeURIComponent(q)
-    );
-    const j = await r.json();
+  const r = await fetch("https://www.jumbo.com.ar/_v/segment/graphql/v1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      accept: "*/*",
+    },
+    body: JSON.stringify({
+      operationName: "productSearchV3",
+      variables: {
+        query,
+        from: 0,
+        to: 1,
+      },
+      extensions: {
+        persistedQuery: {
+          version: 1,
+          // ⚠️ este hash es obligatorio (el real de Jumbo)
+          sha256Hash: "REEMPLAZAR_HASH_REAL_JUMBO",
+        },
+      },
+    }),
+  });
 
-    res.json(j.products || []);
-  } catch (e) {
-    console.error("SEARCH ERR:", e);
-    res.status(500).json([]);
+  const j = await r.json();
+
+  const prod = j?.data?.productSearch?.products?.[0];
+  const item = prod?.items?.[0];
+  const offer = item?.sellers?.[0]?.commertialOffer;
+
+  if (!prod || !offer) return null;
+
+  return {
+    jumbo_id: prod.productId,
+    price: offer.Price,
+  };
+}
+
+/* =======================
+   UPDATE PRODUCT
+======================= */
+async function actualizarProducto(producto) {
+  const data = await buscarEnJumbo(producto.nombre);
+  if (!data) {
+    console.log("❌ No encontrado:", producto.nombre);
+    return;
   }
-});
 
-/* =========================
-   ADD (ADAPTADO)
-========================= */
-app.post("/add", async (req, res) => {
-  try {
-    const {
-      name,
-      image,
-      source,
-      link,
-      category,
-      price,
-      description, // 👈 NUEVO
-    } = req.body;
+  await pool.query(
+    `
+    UPDATE products
+    SET
+      price = $1,
+      jumbo_id = $2,
+      updated_at = NOW()
+    WHERE id = $3
+    `,
+    [data.price, data.jumbo_id, producto.id]
+  );
 
-    if (!name) {
-      return res.status(400).json({ error: "name requerido" });
-    }
+  console.log(
+    "✅ Actualizado:",
+    producto.nombre,
+    "→ $",
+    data.price,
+    "| jumbo_id:",
+    data.jumbo_id
+  );
+}
 
-    const nameNorm = name
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+/* =======================
+   MAIN
+======================= */
+async function run() {
+  const r = await pool.query(`
+    SELECT id, nombre
+    FROM products
+    WHERE source = 'jumbo'
+  `);
 
-    const r = await pool.query(
-      `
-      INSERT INTO products
-        (name, name_norm, image, price, description, source, originalurl, category)
-      VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (name_norm) DO NOTHING
-      RETURNING id
-      `,
-      [
-        name,
-        nameNorm,
-        image || null,
-        price ?? 0,
-        description || null,
-        source || null,
-        link || null,
-        category || null,
-      ]
-    );
-
-    console.log("INSERTED:", r.rowCount);
-    res.json({ inserted: r.rowCount });
-  } catch (e) {
-    console.error("ADD ERR:", e);
-    res.status(500).json({ error: e.message });
+  for (const p of r.rows) {
+    await actualizarProducto(p);
+    await new Promise((r) => setTimeout(r, 1200)); // ⏱ evita bloqueo
   }
-});
 
-app.listen(process.env.PORT || 3000, () =>
-  console.log("SERVER OK")
-);
+  console.log("🚀 Proceso terminado");
+  process.exit(0);
+}
+
+run().catch((e) => {
+  console.error("ERROR:", e);
+  process.exit(1);
+});
