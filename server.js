@@ -22,16 +22,17 @@ const normalize = (s) =>
     .trim();
 
 /* =======================
-   JUMBO SEARCH (SIN HASH)
+   JUMBO SEARCH (REST)
 ======================= */
-async function buscarEnJumbo(nombre) {
-  const q = encodeURIComponent(normalize(nombre));
+async function buscarEnJumbo(name) {
+  const q = encodeURIComponent(normalize(name));
 
   const r = await fetch(
     `https://www.jumbo.com.ar/api/catalog_system/pub/products/search/?ft=${q}`
   );
 
   const j = await r.json();
+
   const prod = j?.[0];
   const item = prod?.items?.[0];
   const offer = item?.sellers?.[0]?.commertialOffer;
@@ -48,10 +49,10 @@ async function buscarEnJumbo(nombre) {
    UPDATE PRODUCT
 ======================= */
 async function actualizarProducto(producto) {
-  const data = await buscarEnJumbo(producto.nombre);
+  const data = await buscarEnJumbo(producto.name);
 
   if (!data) {
-    console.log("❌ No encontrado:", producto.nombre);
+    console.log("❌ No encontrado:", producto.name);
     return;
   }
 
@@ -69,7 +70,7 @@ async function actualizarProducto(producto) {
 
   console.log(
     "✅",
-    producto.nombre,
+    producto.name,
     "| $",
     data.price,
     "| jumbo_id:",
@@ -82,17 +83,17 @@ async function actualizarProducto(producto) {
 ======================= */
 async function run() {
   const r = await pool.query(`
-    SELECT id, nombre
+    SELECT id, name
     FROM products
     WHERE source = 'jumbo'
   `);
 
   for (const p of r.rows) {
     await actualizarProducto(p);
-    await new Promise((r) => setTimeout(r, 1000)); // evita bloqueos
+    await new Promise((r) => setTimeout(r, 1000)); // anti bloqueo
   }
 
-  console.log("🚀 Actualización finalizada");
+  console.log("🚀 Proceso terminado");
   process.exit(0);
 }
 
