@@ -28,7 +28,7 @@ async function obtenerPrecioJumbo(jumboId) {
 
 async function syncJumboPrices() {
   const { rows } = await pool.query(
-    "SELECT id, description, jumbo_price FROM productos"
+    "SELECT id, description, jumbo_price FROM products"
   );
 
   for (const p of rows) {
