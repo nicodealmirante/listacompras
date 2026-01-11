@@ -1,5 +1,4 @@
 import pkg from "pg";
-import fetch from "node-fetch";
 
 const { Pool } = pkg;
 
