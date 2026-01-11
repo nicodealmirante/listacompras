@@ -1,103 +1,57 @@
-import fetch from "node-fetch";
 import pkg from "pg";
+import fetch from "node-fetch";
 
 const { Pool } = pkg;
 
-/* =======================
-   DB
-======================= */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }
 });
 
-/* =======================
-   HELPERS
-======================= */
-const normalize = (s) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function extraerJumboId(description) {
+  if (!description) return null;
 
-/* =======================
-   JUMBO SEARCH (REST)
-======================= */
-async function buscarEnJumbo(name) {
-  const q = encodeURIComponent(normalize(name));
-
-  const r = await fetch(
-    `https://www.jumbo.com.ar/api/catalog_system/pub/products/search/?ft=${q}`
-  );
-
-  const j = await r.json();
-
-  const prod = j?.[0];
-  const item = prod?.items?.[0];
-  const offer = item?.sellers?.[0]?.commertialOffer;
-
-  if (!prod || !offer) return null;
-
-  return {
-    jumbo_id: prod.productId,
-    price: offer.Price,
-  };
+  // si viene tipo "JUMBO:123456"
+  const match = description.match(/\d+/);
+  return match ? match[0] : null;
 }
 
-/* =======================
-   UPDATE PRODUCT
-======================= */
-async function actualizarProducto(producto) {
-  const data = await buscarEnJumbo(producto.name);
-
-  if (!data) {
-    console.log("❌ No encontrado:", producto.name);
-    return;
+async function obtenerPrecioJumbo(jumboId) {
+  try {
+    const r = await fetch(`https://api.jumbo.com.ar/products/${jumboId}`);
+    const j = await r.json();
+    return Number(j.price);
+  } catch {
+    return null;
   }
-
-  await pool.query(
-    `
-    UPDATE products
-    SET
-      price = $1,
-      description = $2,
-      updated_at = NOW()
-    WHERE id = $3
-    `,
-    [data.price, data.jumbo_id, producto.id]
-  );
-
-  console.log(
-    "✅",
-    producto.name,
-    "| $",
-    data.price,
-    "| jumbo_id:",
-    data.jumbo_id
-  );
 }
 
-/* =======================
-   MAIN
-======================= */
-async function run() {
-  const r = await pool.query(`
-    SELECT id, name
-    FROM products
-    WHERE source = 'jumbo'
-  `);
+async function syncJumboPrices() {
+  const { rows } = await pool.query(
+    "SELECT id, description, jumbo_price FROM productos"
+  );
 
-  for (const p of r.rows) {
-    await actualizarProducto(p);
-    await new Promise((r) => setTimeout(r, 1000)); // anti bloqueo
+  for (const p of rows) {
+    const jumboId = extraerJumboId(p.description);
+    if (!jumboId) continue;
+
+    const nuevoPrecio = await obtenerPrecioJumbo(jumboId);
+    if (!nuevoPrecio) continue;
+
+    if (Number(p.jumbo_price) !== nuevoPrecio) {
+      await pool.query(
+        "UPDATE productos SET jumbo_price = $1 WHERE id = $2",
+        [nuevoPrecio, p.id]
+      );
+
+      console.log(
+        `Producto ${p.id} | ${p.jumbo_price} → ${nuevoPrecio}`
+      );
+    }
   }
 
-  console.log("🚀 Proceso terminado");
+  console.log("Sync Jumbo OK");
   process.exit(0);
 }
 
-run().catch((e) => {
-  console.error("ERROR:", e);
-  process.exit(1);
-});
+syncJumboPrices();
