@@ -40,7 +40,7 @@ async function syncJumboPrices() {
 
     if (Number(p.jumbo_price) !== nuevoPrecio) {
       await pool.query(
-        "UPDATE productos SET jumbo_price = $1 WHERE id = $2",
+        "UPDATE products SET jumbo_price = $1 WHERE id = $2",
         [nuevoPrecio, p.id]
       );
 
